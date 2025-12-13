@@ -257,11 +257,15 @@ a {
 
 /* Copy Code Button */
 .code-block-wrapper {
-  @apply relative group;
+  position: relative;
 }
 
 .copy-button {
-  @apply absolute top-4 right-4 px-3 py-1.5 bg-dark-bg border border-gray-700 rounded text-sm text-gray-400 opacity-0 group-hover:opacity-100 transition-opacity hover:text-accent-green hover:border-accent-green;
+  @apply absolute top-4 right-4 px-3 py-1.5 bg-dark-bg border border-gray-700 rounded text-sm text-gray-400 opacity-0 transition-opacity hover:text-accent-green hover:border-accent-green;
+}
+
+.code-block-wrapper:hover .copy-button {
+  @apply opacity-100;
 }
 
 .copy-button.copied {
