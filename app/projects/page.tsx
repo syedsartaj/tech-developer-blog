@@ -1,6 +1,3 @@
-import Header from '@/components/Header';
-import Footer from '@/components/Footer';
-
 interface Project {
   id: number;
   title: string;
@@ -111,10 +108,7 @@ export default function ProjectsPage() {
   const otherProjects = projects.filter(p => p.status !== 'active');
 
   return (
-    <div className="min-h-screen bg-[#0d1117] text-gray-100">
-      <Header />
-
-      <main className="max-w-6xl mx-auto px-6 py-16">
+    <div className="max-w-6xl mx-auto px-6 py-16">
         <div className="mb-16">
           <h1 className="text-5xl font-bold mb-6">Projects</h1>
           <p className="text-xl text-gray-400 max-w-3xl">
@@ -300,9 +294,6 @@ export default function ProjectsPage() {
             </a>
           </div>
         </div>
-      </main>
-
-      <Footer />
     </div>
   );
 }

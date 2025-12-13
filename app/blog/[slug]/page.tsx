@@ -1,5 +1,3 @@
-import Header from '@/components/Header';
-import Footer from '@/components/Footer';
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
 
@@ -180,10 +178,7 @@ export default function BlogPostPage({ params }: { params: { slug: string } }) {
   };
 
   return (
-    <div className="min-h-screen bg-[#0d1117] text-gray-100">
-      <Header />
-
-      <article className="max-w-4xl mx-auto px-6 py-16">
+    <article className="max-w-4xl mx-auto px-6 py-16">
         <div className="mb-8">
           <Link
             href="/blog"
@@ -257,9 +252,6 @@ export default function BlogPostPage({ params }: { params: { slug: string } }) {
             </a>
           </div>
         </div>
-      </article>
-
-      <Footer />
-    </div>
+    </article>
   );
 }
