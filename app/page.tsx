@@ -1,107 +1,33 @@
 import BlogCard from '@/components/BlogCard';
 import CodeBlock from '@/components/CodeBlock';
 import Link from 'next/link';
+import { getSmakslyBlogs, formatBlogDate, estimateReadTime, SmakslyBlog } from '@/lib/smaksly-blogs';
 
-const samplePosts = [
-  {
-    id: '1',
-    title: 'Building Scalable APIs with Node.js and Express',
-    excerpt: 'Learn how to design and implement production-ready REST APIs with proper error handling, validation, and performance optimization.',
-    author: 'Jane Developer',
-    date: '2024-03-15',
-    category: 'Backend',
-    tags: ['Node.js', 'Express', 'API'],
-    readTime: '8 min read',
-    codePreview: `const express = require('express');
-const app = express();
+export const dynamic = 'force-dynamic';
+export const revalidate = 0;
 
-app.use(express.json());
+// Transform SmakslyBlog to the format expected by BlogCard
+function transformBlogForCard(blog: SmakslyBlog) {
+  // Extract first 200 characters from body as excerpt
+  const plainText = blog.body.replace(/<[^>]*>/g, '').replace(/[#*`]/g, '');
+  const excerpt = plainText.substring(0, 200) + (plainText.length > 200 ? '...' : '');
 
-app.get('/api/users', async (req, res) => {
-  try {
-    const users = await User.find();
-    res.json(users);
-  } catch (error) {
-    res.status(500).json({ error: 'Server error' });
-  }
-});`,
-  },
-  {
-    id: '2',
-    title: 'React Server Components: A Deep Dive',
-    excerpt: 'Explore the new paradigm of React Server Components and how they improve performance and developer experience in Next.js applications.',
-    author: 'John Code',
-    date: '2024-03-12',
-    category: 'Frontend',
-    tags: ['React', 'Next.js', 'RSC'],
-    readTime: '12 min read',
-    codePreview: `// app/page.tsx - Server Component
-async function getData() {
-  const res = await fetch('https://api.example.com/posts');
-  return res.json();
-}
+  // Extract code block from body for preview (if exists)
+  const codeBlockMatch = blog.body.match(/```[\s\S]*?\n([\s\S]*?)```/);
+  const codePreview = codeBlockMatch ? codeBlockMatch[1].substring(0, 200) : undefined;
 
-export default async function Page() {
-  const data = await getData();
-  return <PostList posts={data} />;
-}`,
-  },
-  {
-    id: '3',
-    title: 'TypeScript Advanced Patterns and Best Practices',
-    excerpt: 'Master advanced TypeScript features including generics, utility types, and conditional types to write more maintainable code.',
-    author: 'Sarah Types',
-    date: '2024-03-10',
-    category: 'TypeScript',
-    tags: ['TypeScript', 'Patterns', 'Best Practices'],
-    readTime: '10 min read',
-    codePreview: `type DeepReadonly<T> = {
-  readonly [P in keyof T]: T[P] extends object
-    ? DeepReadonly<T[P]>
-    : T[P];
-};
-
-interface User {
-  name: string;
-  settings: {
-    theme: string;
+  return {
+    id: blog.slug,
+    title: blog.title,
+    excerpt,
+    author: 'Tech Developer',
+    date: formatBlogDate(blog.publish_date),
+    category: blog.category || 'Technology',
+    tags: blog.category ? [blog.category] : ['Technology'],
+    readTime: estimateReadTime(blog.body),
+    codePreview,
   };
 }
-
-const user: DeepReadonly<User> = {
-  name: 'John',
-  settings: { theme: 'dark' }
-};`,
-  },
-  {
-    id: '4',
-    title: 'Mastering MongoDB Aggregation Pipeline',
-    excerpt: 'Unlock the power of MongoDB aggregation framework for complex data transformations and analytics queries.',
-    author: 'Mike Database',
-    date: '2024-03-08',
-    category: 'Database',
-    tags: ['MongoDB', 'Database', 'Aggregation'],
-    readTime: '15 min read',
-    codePreview: `db.orders.aggregate([
-  {
-    $match: {
-      status: 'completed',
-      orderDate: { $gte: new Date('2024-01-01') }
-    }
-  },
-  {
-    $group: {
-      _id: '$customerId',
-      totalSpent: { $sum: '$amount' },
-      orderCount: { $sum: 1 }
-    }
-  },
-  {
-    $sort: { totalSpent: -1 }
-  }
-]);`,
-  },
-];
 
 const categories = [
   { name: 'Frontend', count: 45, icon: '⚛️' },
@@ -148,7 +74,10 @@ function useFetch<T>(url: string): FetchState<T> {
 
 export default useFetch;`;
 
-export default function Home() {
+export default async function Home() {
+  const smakslyBlogs = await getSmakslyBlogs();
+  const featuredPosts = smakslyBlogs.slice(0, 4).map(transformBlogForCard);
+
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
       {/* Hero Section */}
@@ -162,7 +91,7 @@ export default function Home() {
           </p>
           <div className="flex justify-center gap-4 pt-4">
             <Link
-              href="/posts"
+              href="/blog"
               className="px-6 py-3 bg-accent-green text-dark-bg font-semibold rounded-lg hover:bg-green-400 transition-colors"
             >
               Browse Articles
@@ -216,17 +145,23 @@ export default function Home() {
         <div className="flex items-center justify-between mb-8">
           <h2 className="text-3xl font-bold">Latest Articles</h2>
           <Link
-            href="/posts"
+            href="/blog"
             className="text-accent-green hover:text-green-400 transition-colors font-semibold"
           >
             View All →
           </Link>
         </div>
-        <div className="grid md:grid-cols-2 gap-6">
-          {samplePosts.map((post) => (
-            <BlogCard key={post.id} post={post} />
-          ))}
-        </div>
+        {featuredPosts.length > 0 ? (
+          <div className="grid md:grid-cols-2 gap-6">
+            {featuredPosts.map((post) => (
+              <BlogCard key={post.id} post={post} />
+            ))}
+          </div>
+        ) : (
+          <div className="text-center py-12 bg-dark-card border border-gray-800 rounded-lg">
+            <p className="text-gray-400 text-lg">No blog posts available yet. Check back soon!</p>
+          </div>
+        )}
       </section>
 
       {/* Newsletter CTA */}

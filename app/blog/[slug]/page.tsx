@@ -1,5 +1,9 @@
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
+import { getSmakslyBlogs, getSmakslyBlogBySlug, formatBlogDate, estimateReadTime } from '@/lib/smaksly-blogs';
+
+export const dynamic = 'force-dynamic';
+export const revalidate = 0;
 
 interface BlogPost {
   slug: string;
@@ -14,117 +18,33 @@ interface BlogPost {
   };
 }
 
-const blogPosts: Record<string, BlogPost> = {
-  'building-scalable-apis-with-nodejs': {
-    slug: 'building-scalable-apis-with-nodejs',
-    title: 'Building Scalable APIs with Node.js and Express',
-    date: '2024-01-15',
-    readTime: '8 min read',
-    tags: ['Node.js', 'Express', 'API', 'Backend'],
-    author: {
-      name: 'Tech Developer',
-      role: 'Full Stack Engineer'
-    },
-    content: `Building scalable APIs is crucial for modern web applications. In this guide, we'll explore best practices for creating production-ready REST APIs using Node.js and Express.
-
-## Setting Up the Project
-
-First, let's initialize our Node.js project with the necessary dependencies:
-
-\`\`\`bash
-npm init -y
-npm install express dotenv helmet cors compression
-npm install -D typescript @types/node @types/express nodemon
-\`\`\`
-
-## Creating the Express Server
-
-Here's a basic Express server setup with essential middleware for security and performance.
-
-## Performance Optimization
-
-### 1. Implement Caching
-
-Use Redis for caching frequently accessed data to improve response times.
-
-### 2. Rate Limiting
-
-Protect your API from abuse with rate limiting middleware.
-
-## Conclusion
-
-Building scalable APIs requires careful planning and implementation of best practices. Focus on security, performance, and maintainability from the start.`
-  },
-  'mastering-react-hooks': {
-    slug: 'mastering-react-hooks',
-    title: 'Mastering React Hooks: A Deep Dive',
-    date: '2024-01-10',
-    readTime: '12 min read',
-    tags: ['React', 'JavaScript', 'Frontend'],
-    author: {
-      name: 'Tech Developer',
-      role: 'Full Stack Engineer'
-    },
-    content: `React Hooks revolutionized how we write React components. Let's explore advanced patterns and best practices.
-
-## Understanding useState
-
-The useState hook is the foundation of state management in functional components. It provides a simple way to add state to your components without writing class components.
-
-## useEffect for Side Effects
-
-Managing side effects properly is crucial for building reliable applications. Always remember to clean up subscriptions and async operations.
-
-## Custom Hooks
-
-Create reusable logic with custom hooks. They let you extract component logic into reusable functions.
-
-## Performance Optimization with useMemo and useCallback
-
-These hooks help prevent unnecessary re-renders and optimize performance in your React applications.
-
-React Hooks provide a powerful and flexible way to manage state and side effects in your applications.`
-  },
-  'typescript-best-practices-2024': {
-    slug: 'typescript-best-practices-2024',
-    title: 'TypeScript Best Practices in 2024',
-    date: '2024-01-05',
-    readTime: '10 min read',
-    tags: ['TypeScript', 'JavaScript', 'Development'],
-    author: {
-      name: 'Tech Developer',
-      role: 'Full Stack Engineer'
-    },
-    content: `TypeScript has become essential for building maintainable JavaScript applications. Here are the best practices for 2024.
-
-## Type Safety
-
-Always prefer explicit typing over implicit any. This helps catch bugs early and improves code maintainability.
-
-## Advanced Type Patterns
-
-TypeScript provides powerful utility types like Pick, Omit, Partial, and Required that help you create flexible and reusable type definitions.
-
-## Generic Constraints
-
-Use generic constraints to create type-safe functions that work with multiple types while still providing compile-time checks.
-
-TypeScript's type system helps catch bugs early and improves code maintainability.`
-  }
-};
-
 export async function generateStaticParams() {
-  return Object.keys(blogPosts).map((slug) => ({
-    slug,
+  const blogs = await getSmakslyBlogs();
+  return blogs.map((blog) => ({
+    slug: blog.slug,
   }));
 }
 
-export default function BlogPostPage({ params }: { params: { slug: string } }) {
-  const post = blogPosts[params.slug];
+export default async function BlogPostPage({ params }: { params: { slug: string } }) {
+  const smakslyBlog = await getSmakslyBlogBySlug(params.slug);
 
-  if (!post) {
+  if (!smakslyBlog) {
     notFound();
   }
+
+  // Transform SmakslyBlog to BlogPost format
+  const post: BlogPost = {
+    slug: smakslyBlog.slug,
+    title: smakslyBlog.title,
+    date: new Date(smakslyBlog.publish_date).toISOString().split('T')[0],
+    readTime: estimateReadTime(smakslyBlog.body),
+    tags: smakslyBlog.category ? [smakslyBlog.category] : ['Technology'],
+    content: smakslyBlog.body,
+    author: {
+      name: 'Tech Developer',
+      role: 'Full Stack Engineer'
+    }
+  };
 
   // Simple markdown-like parsing
   const renderContent = (content: string) => {
