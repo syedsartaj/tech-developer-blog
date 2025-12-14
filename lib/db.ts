@@ -43,13 +43,22 @@ export async function getCollection(collectionName: string) {
   return db.collection(collectionName);
 }
 
+// Code snippet interface
+export interface CodeSnippet {
+  language: string;
+  code: string;
+  title?: string;
+  highlight?: number[];
+}
+
 // Blog post interface
 export interface BlogPost {
   _id?: string;
-  title: string;
   slug: string;
+  title: string;
   excerpt: string;
   content: string;
+  coverImage?: string;
   author: {
     name: string;
     email: string;
@@ -57,12 +66,13 @@ export interface BlogPost {
   };
   category: string;
   tags: string[];
+  codeSnippets?: CodeSnippet[];
   publishedAt: Date;
-  updatedAt?: Date;
-  status: 'draft' | 'published';
   featured: boolean;
-  coverImage?: string;
   readTime: number;
+  createdAt: Date;
+  updatedAt: Date;
+  status: 'draft' | 'published';
   views: number;
   likes: number;
   metadata?: {
@@ -124,9 +134,12 @@ export const blogOperations = {
   // Create a new post
   async createPost(post: Omit<BlogPost, '_id'>) {
     const collection = await getCollection('posts');
+    const now = new Date();
     const result = await collection.insertOne({
       ...post,
-      publishedAt: new Date(),
+      createdAt: now,
+      updatedAt: now,
+      publishedAt: post.publishedAt || now,
       views: 0,
       likes: 0,
     });
@@ -208,6 +221,148 @@ export const blogOperations = {
       .toArray();
   },
 };
+
+// Additional CRUD functions for admin panel
+import { ObjectId } from 'mongodb';
+
+// Get all posts (including drafts) for admin
+export async function getPosts(filter: any = {}, options: any = {}) {
+  const collection = await getCollection('posts');
+  const { limit = 50, skip = 0, sort = { createdAt: -1 } } = options;
+
+  const posts = await collection
+    .find(filter)
+    .sort(sort)
+    .limit(limit)
+    .skip(skip)
+    .toArray();
+
+  return posts.map(post => ({
+    ...post,
+    _id: post._id.toString(),
+  }));
+}
+
+// Get single post by ID
+export async function getPostById(id: string) {
+  const collection = await getCollection('posts');
+  const post = await collection.findOne({ _id: new ObjectId(id) });
+
+  if (!post) return null;
+
+  return {
+    ...post,
+    _id: post._id.toString(),
+  };
+}
+
+// Create new post
+export async function createPost(postData: Omit<BlogPost, '_id' | 'createdAt' | 'updatedAt' | 'views' | 'likes'>) {
+  const collection = await getCollection('posts');
+  const now = new Date();
+
+  const result = await collection.insertOne({
+    ...postData,
+    createdAt: now,
+    updatedAt: now,
+    views: 0,
+    likes: 0,
+  });
+
+  return {
+    _id: result.insertedId.toString(),
+    ...postData,
+    createdAt: now,
+    updatedAt: now,
+    views: 0,
+    likes: 0,
+  };
+}
+
+// Update post by ID
+export async function updatePost(id: string, updates: Partial<BlogPost>) {
+  const collection = await getCollection('posts');
+
+  const result = await collection.updateOne(
+    { _id: new ObjectId(id) },
+    {
+      $set: {
+        ...updates,
+        updatedAt: new Date(),
+      },
+    }
+  );
+
+  if (result.matchedCount === 0) {
+    throw new Error('Post not found');
+  }
+
+  return await getPostById(id);
+}
+
+// Delete post by ID
+export async function deletePost(id: string) {
+  const collection = await getCollection('posts');
+
+  const result = await collection.deleteOne({ _id: new ObjectId(id) });
+
+  if (result.deletedCount === 0) {
+    throw new Error('Post not found');
+  }
+
+  return { success: true, deletedCount: result.deletedCount };
+}
+
+// Get all posts with pagination and search
+export async function getAllPosts(options: {
+  page?: number;
+  limit?: number;
+  search?: string;
+  category?: string;
+  status?: 'draft' | 'published';
+} = {}) {
+  const collection = await getCollection('posts');
+  const { page = 1, limit = 20, search, category, status } = options;
+  const skip = (page - 1) * limit;
+
+  const filter: any = {};
+
+  if (search) {
+    filter.$or = [
+      { title: { $regex: search, $options: 'i' } },
+      { excerpt: { $regex: search, $options: 'i' } },
+      { content: { $regex: search, $options: 'i' } },
+    ];
+  }
+
+  if (category) {
+    filter.category = category;
+  }
+
+  if (status) {
+    filter.status = status;
+  }
+
+  const [posts, total] = await Promise.all([
+    collection
+      .find(filter)
+      .sort({ createdAt: -1 })
+      .limit(limit)
+      .skip(skip)
+      .toArray(),
+    collection.countDocuments(filter),
+  ]);
+
+  return {
+    posts: posts.map(post => ({
+      ...post,
+      _id: post._id.toString(),
+    })),
+    total,
+    page,
+    totalPages: Math.ceil(total / limit),
+  };
+}
 
 // Export the client promise for use in other parts of the app
 export default clientPromise;
